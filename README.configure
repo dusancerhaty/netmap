@@ -1,0 +1,2 @@
+JetsonTX2
+	./configure --driver-suffix=netmap --kernel-dir=/usr/src/linux-4.4.38+ --drivers=igb

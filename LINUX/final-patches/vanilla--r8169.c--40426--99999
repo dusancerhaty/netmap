@@ -1,0 +1,72 @@
+diff --git a/drivers/net/ethernet/realtek/r8169.c b/drivers/net/ethernet/realtek/r8169.c
+index 79ef799..9650173 100644
+--- a/r8169.c
++++ b/r8169.c
+@@ -964,6 +964,10 @@ static const struct rtl_cond name = {			\
+ 							\
+ static bool name ## _check(struct rtl8169_private *tp)
+ 
++#if defined(CONFIG_NETMAP) || defined(CONFIG_NETMAP_MODULE)
++#include <if_re_netmap_linux.h>
++#endif
++
+ static bool rtl_ocp_reg_failure(struct rtl8169_private *tp, u32 reg)
+ {
+ 	if (reg & 0xffff0001) {
+@@ -6765,6 +6769,11 @@ static inline void rtl8169_mark_as_last_descriptor(struct RxDesc *desc)
+ static int rtl8169_rx_fill(struct rtl8169_private *tp)
+ {
+ 	unsigned int i;
++#ifdef DEV_NETMAP
++	re_netmap_tx_init(tp);
++	if (re_netmap_rx_init(tp))
++		return 0; // success
++#endif /* DEV_NETMAP */
+ 
+ 	for (i = 0; i < NUM_RX_DESC; i++) {
+ 		void *data;
+@@ -7259,6 +7268,11 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp)
+ {
+ 	unsigned int dirty_tx, tx_left;
+ 
++#ifdef DEV_NETMAP
++	if (netmap_tx_irq(dev, 0))
++		return;
++#endif /* DEV_NETMAP */
++
+ 	dirty_tx = tp->dirty_tx;
+ 	smp_rmb();
+ 	tx_left = tp->cur_tx - dirty_tx;
+@@ -7360,6 +7374,11 @@ static int rtl_rx(struct net_device *dev, struct rtl8169_private *tp, u32 budget
+ 	unsigned int cur_rx, rx_left;
+ 	unsigned int count;
+ 
++#ifdef DEV_NETMAP
++	if (netmap_rx_irq(dev, 0, &count))
++		return count;
++#endif /* DEV_NETMAP */
++
+ 	cur_rx = tp->cur_rx;
+ 
+ 	for (rx_left = min(budget, NUM_RX_DESC); rx_left > 0; rx_left--, cur_rx++) {
+@@ -7984,6 +8003,9 @@ static void rtl_remove_one(struct pci_dev *pdev)
+ 			  tp->counters, tp->counters_phys_addr);
+ 
+ 	rtl_release_firmware(tp);
++#ifdef DEV_NETMAP
++	netmap_detach(dev);
++#endif /* DEV_NETMAP */
+ 
+ 	if (pci_dev_run_wake(pdev))
+ 		pm_runtime_get_noresume(&pdev->dev);
+@@ -8446,6 +8468,10 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+ 	if (pci_dev_run_wake(pdev))
+ 		pm_runtime_put_noidle(&pdev->dev);
+ 
++#ifdef DEV_NETMAP
++	re_netmap_attach(tp);
++#endif /* DEV_NETMAP */
++
+ 	netif_carrier_off(dev);
+ 
+ out:
