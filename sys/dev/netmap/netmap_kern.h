@@ -255,6 +255,8 @@ typedef struct hrtimer{
 #define nm_prinf(fmt, arg...)    printk(KERN_INFO fmt, ##arg)
 #endif
 
+#define NM_DDEVHLP(F, ...) printk(KERN_INFO "[%-25s:%d] " F, __FUNCTION__, __LINE__, ##__VA_ARGS__)
+
 #define ND(format, ...)
 #define D(format, ...)						\
 	do {							\
