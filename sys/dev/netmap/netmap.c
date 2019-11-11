@@ -2518,6 +2518,94 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data, struct thread
 	return (error);
 }
 
+int nm_open_internally(const char *ifname, struct netmap_adapter *m_na,
+	struct nmreq *req, uint64_t new_flags)
+{
+	struct netmap_mem_d *nmd = NULL;
+	struct netmap_adapter *na = NULL;
+	struct ifnet *ifp = NULL;
+	struct netmap_if *nifp;
+	struct netmap_priv_d priv;
+	int error = 0;
+	enum txrx t;
+
+	memcpy(req->nr_name, ifname, sizeof(req->nr_name) - 1);
+
+	req->nr_version = NETMAP_API;
+	req->nr_ringid &= NETMAP_RING_MASK;
+
+	/* add the *XPOLL flags */
+	req->nr_ringid |= new_flags & (NETMAP_NO_TX_POLL | NETMAP_DO_RX_POLL);
+
+	//if (ioctl(d->fd, NIOCREGIF, &d->req)) {
+	//	return -1;
+	//}
+	/* protect access to priv from concurrent NIOCREGIF */
+	NMG_LOCK();
+	do {
+		u_int memflags;
+
+		memset(&priv, 0, sizeof(priv));
+		priv.np_refs = 1;
+
+		/* find the interface and a reference */
+		error = netmap_get_na(req, &na, &ifp, nmd,
+				      1 /* create */); /* keep reference */
+		if (error)
+			break;
+		if (NETMAP_OWNED_BY_KERN(na)) {
+			error = EBUSY;
+			break;
+		}
+
+		if (na->virt_hdr_len && !(req->nr_flags & NR_ACCEPT_VNET_HDR)) {
+			error = EIO;
+			break;
+		}
+
+		error = netmap_do_regif(&priv, na, req->nr_ringid, req->nr_flags);
+		if (error) {    /* reg. failed, release priv and ref */
+			break;
+		}
+		nifp = priv.np_nifp;
+		priv.np_td = NULL; // XXX kqueue, debugging only
+
+		/* return the offset of the netmap_if object */
+		req->nr_rx_rings = na->num_rx_rings;
+		req->nr_tx_rings = na->num_tx_rings;
+		req->nr_rx_slots = na->num_rx_desc;
+		req->nr_tx_slots = na->num_tx_desc;
+		error = netmap_mem_get_info(na->nm_mem, &req->nr_memsize, &memflags,
+			&req->nr_arg2);
+		if (error) {
+			netmap_do_unregif(&priv);
+			break;
+		}
+		if (memflags & NETMAP_MEM_PRIVATE) {
+			*(uint32_t *)(uintptr_t)&nifp->ni_flags |= NI_PRIV_MEM;
+		}
+		for_rx_tx(t) {
+			priv.np_si[t] = nm_si_user(&priv, t) ?
+				&na->si[t] : &NMR(na, t)[priv.np_qfirst[t]].si;
+		}
+
+		req->nr_offset = netmap_mem_if_offset(na->nm_mem, nifp);
+
+		/* store ifp reference so that priv destructor may release it */
+		priv.np_ifp = ifp;
+	} while (0);
+	if (error) {
+		netmap_unget_na(na, ifp);
+	}
+	/* release the reference from netmap_mem_find() or
+	 * netmap_mem_ext_create()
+	 */
+	if (nmd)
+		netmap_mem_put(nmd);
+	NMG_UNLOCK();
+
+	return (error);
+}
 
 /*
  * select(2) and poll(2) handlers for the "netmap" device.

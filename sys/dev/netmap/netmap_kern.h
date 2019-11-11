@@ -828,6 +828,8 @@ struct netmap_adapter {
 	u_int virt_hdr_len;
 
 	char name[64];
+
+	struct netmap_adapter *na_bound;
 };
 
 static __inline u_int
@@ -1511,6 +1513,9 @@ int netmap_get_memory(struct netmap_priv_d* p);
 void netmap_dtor(void *data);
 
 int netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data, struct thread *);
+
+int nm_open_internally(const char *ifname, struct netmap_adapter *m_na,
+	struct nmreq *req, uint64_t new_flags);
 
 /* netmap_adapter creation/destruction */
 

@@ -35,6 +35,9 @@
 #include <net/netmap.h>
 #include <netmap/netmap_kern.h>
 
+static struct netmap_adapter *na_arr[4];
+static unsigned int na_arr_used = 0;
+
 #define SOFTC_T	igb_adapter
 
 #define igb_driver_name netmap_igb_driver_name
@@ -302,6 +305,22 @@ ring_reset:
 	return netmap_ring_reinit(kring);
 }
 
+static int
+igb_netmap_init_rings_internally(struct netmap_adapter* na)
+{
+	struct ifnet *ifp = na->ifp;
+	struct SOFTC_T *adapter = netdev_priv(ifp);
+	struct net_device *netdev = adapter->netdev;
+	struct nmreq req;
+
+	memset(&req, 0, sizeof(req));
+	req.nr_ringid = 0;
+	req.nr_flags &= ~NR_REG_MASK;
+	req.nr_flags |= NR_REG_ONE_NIC;
+	nm_open_internally(netdev->name, na, &req, 0);
+
+	return 0;
+}
 
 static int
 igb_netmap_configure_tx_ring(struct SOFTC_T *adapter, int ring_nr)
@@ -334,6 +353,7 @@ igb_netmap_configure_rx_ring(struct igb_ring *rxr)
 {
 	struct ifnet *ifp = rxr->netdev;
 	struct netmap_adapter* na = NA(ifp);
+	int init_rings_internally = (na->na_bound != NULL) ? 1 : 0;
 	int reg_idx = rxr->reg_idx;
 	struct netmap_slot* slot;
 	u_int i;
@@ -348,9 +368,22 @@ igb_netmap_configure_rx_ring(struct igb_ring *rxr)
 	 *	srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 	 *	srrctl |= E1000_SRRCTL_DROP_EN;
 	 */
-        slot = netmap_reset(na, NR_RX, reg_idx, 0);
-	if (!slot)
-		return 0;	// not in native netmap mode
+	do
+	{
+		slot = netmap_reset(na, NR_RX, reg_idx, 0);
+		if (!slot) {
+			if (!init_rings_internally) {
+				return 0;	// not in native netmap mode
+			}
+		}
+
+		if (!init_rings_internally) {
+			break;
+		}
+
+		init_rings_internally = 0;
+		igb_netmap_init_rings_internally(na);
+	} while (1);
 
 	for (i = 0; i < rxr->count; i++) {
 		union e1000_adv_rx_desc *rx_desc;
@@ -385,6 +418,8 @@ static void
 igb_netmap_attach(struct SOFTC_T *adapter)
 {
 	struct netmap_adapter na;
+	struct netmap_adapter* na_real;
+	struct netmap_adapter* na_bound;
 
 	bzero(&na, sizeof(na));
 
@@ -398,6 +433,19 @@ igb_netmap_attach(struct SOFTC_T *adapter)
 	na.num_tx_rings = adapter->num_tx_queues;
 	na.num_rx_rings = adapter->num_rx_queues;
 	netmap_attach(&na);
+
+	if (adapter->packet_switching_enable)
+	{
+		na_real = NA(na.ifp);
+		na_arr[na_arr_used] = na_real;
+		if (na_arr_used & 0x1)
+		{
+			na_bound = na_arr[na_arr_used - 1];
+			na_bound->na_bound = na_real;
+			na_real->na_bound = na_bound;
+		}
+		na_arr_used++;
+	}
 }
 
 /* end of file */
