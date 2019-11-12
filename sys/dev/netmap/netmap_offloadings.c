@@ -80,7 +80,7 @@ gso_fix_segment(uint8_t *pkt, size_t len, u_int ipv4, u_int iphlen, u_int tcp,
 	if (ipv4) {
 		/* Set the IPv4 "Total Length" field. */
 		iph->tot_len = htobe16(len);
-		ND("ip total length %u", be16toh(ip->tot_len));
+		ND("ip total length %u", be16toh(iph->tot_len));
 
 		/* Set the IPv4 "Identification" field. */
 		iph->id = htobe16(be16toh(iph->id) + idx);
@@ -264,7 +264,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 			if (dst_slots >= *howmany) {
 				/* We still have work to do, but we've run out of
 				 * dst slots, so we have to drop the packet. */
-				ND(1, "Not enough slots, dropping GSO packet");
+				ND("Not enough slots, dropping GSO packet");
 				return;
 			}
 
@@ -312,7 +312,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 						      "dropping GSO packet");
 						return;
 				}
-				ND(3, "type=%04x", ethertype);
+				ND("type=%04x", ethertype);
 
 				if (src_len < ethhlen + iphlen) {
 					RD(1, "Short GSO fragment [IP], dropping");
@@ -342,7 +342,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 					return;
 				}
 
-				ND(3, "gso_hdr_len %u gso_mtu %d", gso_hdr_len,
+				ND("gso_hdr_len %u gso_mtu %d", gso_hdr_len,
 								   dst_na->mfs);
 
 				/* Advance source pointers. */
@@ -408,7 +408,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 				src_len = ft_p->ft_len;
 			}
 		}
-		ND(3, "%d bytes segmented", segmented_bytes);
+		ND("%d bytes segmented", segmented_bytes);
 
 	} else {
 		/* Address of a checksum field into a destination slot. */
@@ -466,7 +466,7 @@ bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 		if (check && vh && (vh->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM)) {
 			*check = nm_os_csum_fold(csum);
 		}
-		ND(3, "using %u dst_slots", dst_slots);
+		ND("using %u dst_slots", dst_slots);
 
 		/* A second pass on the destination slots to set the slot flags,
 		 * using the right number of destination slots.

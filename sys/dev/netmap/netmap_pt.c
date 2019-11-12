@@ -283,7 +283,7 @@ ptnetmap_tx_handler(void *data, int is_kthread)
 
             if (head_lim >= num_slots)
                 head_lim -= num_slots;
-            ND(1, "batch: %d head: %d head_lim: %d", batch, shadow_ring.head,
+            ND("batch: %d head: %d head_lim: %d", batch, shadow_ring.head,
 						     head_lim);
             shadow_ring.head = head_lim;
 	    batch = PTN_TX_BATCH_LIM(num_slots);
@@ -373,7 +373,7 @@ ptnetmap_tx_handler(void *data, int is_kthread)
 	if (nm_kr_txempty(kring)) {
 	    /* No more available TX slots. We stop waiting for a notification
 	     * from the backend (netmap_tx_irq). */
-            ND(1, "TX ring");
+            ND("TX ring");
             break;
         }
 #endif
@@ -416,7 +416,7 @@ ptnetmap_tx_nothread_notify(void *data)
 	 * we unconditionally inject an interrupt. */
         nm_os_kctx_send_irq(ptns->kctxs[kring->ring_id]);
         IFRATE(ptns->rate_ctx.new.htxk++);
-        ND(1, "%s interrupt", kring->name);
+        ND("%s interrupt", kring->name);
 }
 
 /*
@@ -562,7 +562,7 @@ ptnetmap_rx_handler(void *data, int is_kthread)
 		     dry_cycles >= PTN_RX_DRY_CYCLES_MAX)) {
 	    /* No more packets to be read from the backend. We stop and
 	     * wait for a notification from the backend (netmap_rx_irq). */
-            ND(1, "nr_hwtail: %d rhead: %d dry_cycles: %d",
+            ND("nr_hwtail: %d rhead: %d dry_cycles: %d",
 	       hwtail, kring->rhead, dry_cycles);
             break;
         }
@@ -1033,11 +1033,11 @@ nm_pt_host_notify(struct netmap_kring *kring, int flags)
 
 	/* Notify kthreads (wake up if needed) */
 	if (kring->tx == NR_TX) {
-		ND(1, "TX backend irq");
+		ND("TX backend irq");
 		IFRATE(ptns->rate_ctx.new.btxwu++);
 	} else {
 		k += pth_na->up.num_tx_rings;
-		ND(1, "RX backend irq");
+		ND("RX backend irq");
 		IFRATE(ptns->rate_ctx.new.brxwu++);
 	}
 	nm_os_kctx_worker_wakeup(ptns->kctxs[k]);
@@ -1367,7 +1367,7 @@ netmap_pt_guest_txsync(struct ptnet_ring *ptring, struct netmap_kring *kring,
 		}
 	}
 
-	ND(1, "%s CSB(head:%u cur:%u hwtail:%u) KRING(head:%u cur:%u tail:%u)",
+	ND("%s CSB(head:%u cur:%u hwtail:%u) KRING(head:%u cur:%u tail:%u)",
 		kring->name, ptring->head, ptring->cur, ptring->hwtail,
 		kring->rhead, kring->rcur, kring->nr_hwtail);
 
@@ -1432,7 +1432,7 @@ netmap_pt_guest_rxsync(struct ptnet_ring *ptring, struct netmap_kring *kring,
                 }
         }
 
-	ND(1, "%s CSB(head:%u cur:%u hwtail:%u) KRING(head:%u cur:%u tail:%u)",
+	ND("%s CSB(head:%u cur:%u hwtail:%u) KRING(head:%u cur:%u tail:%u)",
 		kring->name, ptring->head, ptring->cur, ptring->hwtail,
 		kring->rhead, kring->rcur, kring->nr_hwtail);
 

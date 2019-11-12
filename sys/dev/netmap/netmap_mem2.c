@@ -889,7 +889,7 @@ netmap_obj_offset(struct netmap_obj_pool *p, const void *vaddr)
 			continue;
 
 		ofs = ofs + relofs;
-		ND("%s: return offset %d (cluster %d) for pointer %p",
+		ND("%s: return offset %ld (cluster %d) for pointer %p",
 		    p->name, ofs, i, vaddr);
 		return ofs;
 	}
@@ -1054,7 +1054,7 @@ netmap_extra_alloc(struct netmap_adapter *na, uint32_t *head, uint32_t n)
 			*head = cur; /* restore */
 			break;
 		}
-		ND(5, "allocate buffer %d -> %d", *head, cur);
+		ND("allocate buffer %d -> %d", *head, cur);
 		*p = cur; /* link to previous head */
 	}
 
@@ -1818,7 +1818,7 @@ netmap_mem2_rings_create(struct netmap_adapter *na)
 				netmap_mem_bufsize(na->nm_mem);
 			ND("%s h %d c %d t %d", kring->name,
 				ring->head, ring->cur, ring->tail);
-			ND("initializing slots for %s_ring", nm_txrx2str(txrx));
+			ND("initializing slots for %s_ring", nm_txrx2str(t));
 			if (i != nma_get_nrings(na, t) || (na->na_flags & NAF_HOST_RINGS)) {
 				/* this is a real ring */
 				if (netmap_new_bufs(na->nm_mem, ring->slot, ndesc)) {

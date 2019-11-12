@@ -572,7 +572,7 @@ uint32_t forward_packet(struct group_des *g, struct netmap_slot *rs)
 			oq_enq(freeq, &tmp);
 		}
 
-		ND(1, "revoked %d buffers from %s", j, lq->name);
+		ND("revoked %d buffers from %s", j, lq->name);
 	}
 
 	return oq_deq(freeq).buf_idx;
@@ -957,7 +957,7 @@ run:
 					ioctl(rxport->nmd->fd, NIOCRXSYNC, NULL);
 					batch = 0;
 				}
-				ND(1,
+				ND(
 				   "Forwarded Packets: %"PRIu64" Dropped packets: %"PRIu64"   Percent: %.2f",
 				   forwarded, dropped,
 				   ((float)dropped / (float)forwarded * 100));

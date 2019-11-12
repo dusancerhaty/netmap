@@ -257,7 +257,15 @@ typedef struct hrtimer{
 
 #define NM_DDEVHLP(F, ...) printk(KERN_INFO "[%-25s:%d] " F, __FUNCTION__, __LINE__, ##__VA_ARGS__)
 
-#define ND(format, ...)
+#define ND(format, ...) \
+	do {							\
+		struct timeval __xxts;				\
+		microtime(&__xxts);				\
+		nm_prerr("%03d.%06d [%4d] %-25s " format "\n",	\
+		(int)__xxts.tv_sec % 1000, (int)__xxts.tv_usec,	\
+		__LINE__, __FUNCTION__, ##__VA_ARGS__);		\
+	} while (0)
+
 #define D(format, ...)						\
 	do {							\
 		struct timeval __xxts;				\

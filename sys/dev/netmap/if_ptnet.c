@@ -1803,7 +1803,7 @@ ptnet_drain_transmit_queue(struct ptnet_queue *pq, unsigned int budget,
 					continue;
 				}
 			}
-			ND(1, "%s: [csum_flags %lX] vnet hdr: flags %x "
+			ND("%s: [csum_flags %lX] vnet hdr: flags %x "
 			      "csum_start %u csum_ofs %u hdr_len = %u "
 			      "gso_size %u gso_type %x", __func__,
 			      mhead->m_pkthdr.csum_flags, vh->flags,
@@ -2062,7 +2062,7 @@ host_sync:
 				pq->stats.iqdrops ++;
 				goto skip;
 			}
-			ND(1, "%s: vnet hdr: flags %x csum_start %u "
+			ND("%s: vnet hdr: flags %x csum_start %u "
 			      "csum_ofs %u hdr_len = %u gso_size %u "
 			      "gso_type %x", __func__, vh->flags,
 			      vh->csum_start, vh->csum_offset, vh->hdr_len,

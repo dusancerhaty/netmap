@@ -828,7 +828,7 @@ pcap_prod(void *_pa)
 #endif
 	q->c_delay.run(q, &q->c_delay); /* compute delay */
 	t_tx = q->qt_qout + q->cur_delay;
-	ND(5, "tt %ld qout %ld tx %ld qt_tx %ld", tt, q->qt_qout, t_tx, q->qt_tx);
+	ND("tt %ld qout %ld tx %ld qt_tx %ld", tt, q->qt_qout, t_tx, q->qt_tx);
 	/* insure no reordering and spacing by transmission time */
 	q->qt_tx = (t_tx >= q->qt_tx + tt) ? t_tx : q->qt_tx + tt;
 	enq(q);
@@ -1582,7 +1582,7 @@ exp_delay_parse(struct _qs *q, struct _cfg *dst, int ac, char *av[])
 	for (i = 0; i < PTS_D_EXP; i++) {
 		double d = -log2 ((double)(PTS_D_EXP - i) / PTS_D_EXP) * d_av + d_min;
 		t[i] = (uint64_t)d;
-		ND(5, "%ld: %le", i, d);
+		ND("%ld: %le", i, d);
 	}
         return 0;
 }

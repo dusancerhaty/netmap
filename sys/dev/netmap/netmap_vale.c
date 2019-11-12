@@ -743,7 +743,7 @@ netmap_get_bdg_na(struct nmreq *nmr, struct netmap_adapter **na,
 		ND("checking %s", vpna->up.name);
 		if (!strcmp(vpna->up.name, nr_name)) {
 			netmap_adapter_get(&vpna->up);
-			ND("found existing if %s refs %d", nr_name)
+			ND("found existing if %s refs %d", nr_name, vpna->up.na_refcount);
 			*na = &vpna->up;
 			return 0;
 		}
@@ -1477,7 +1477,7 @@ nm_bdg_preflush(struct netmap_kring *kring, u_int end)
 		BDG_RLOCK(b);
 	else if (!BDG_RTRYLOCK(b))
 		return j;
-	ND(5, "rlock acquired for %d packets", ((j > end ? lim+1 : 0) + end) - j);
+	ND("rlock acquired for %d packets", ((j > end ? lim+1 : 0) + end) - j);
 	ft = kring->nkr_ft;
 
 	for (; likely(j != end); j = nm_next(j, lim)) {
@@ -1842,7 +1842,7 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 		}
 	}
 
-	ND(5, "pass 1 done %d pkts %d dsts", n, num_dsts);
+	ND("pass 1 done %d pkts %d dsts", n, num_dsts);
 	/* second pass: scan destinations */
 	for (i = 0; i < num_dsts; i++) {
 		struct netmap_vp_adapter *dst_na;
@@ -1914,12 +1914,12 @@ nm_bdg_flush(struct nm_bdg_fwd *ft, u_int n, struct netmap_vp_adapter *na,
 				KASSERT(dst_na->mfs > 0, ("vpna->mfs is 0"));
 				needed = (needed * na->mfs) /
 						(dst_na->mfs - WORST_CASE_GSO_HEADER) + 1;
-				ND(3, "srcmtu=%u, dstmtu=%u, x=%u", na->mfs, dst_na->mfs, needed);
+				ND("srcmtu=%u, dstmtu=%u, x=%u", na->mfs, dst_na->mfs, needed);
 			}
 		}
 
-		ND(5, "pass 2 dst %d is %x %s",
-			i, d_i, is_vp ? "virtual" : "nic/host");
+		//ND("pass 2 dst %d is %x %s",
+		//	i, d_i, is_vp ? "virtual" : "nic/host");
 		dst_nr = d_i & (NM_BDG_MAXRINGS-1);
 		nrings = dst_na->up.num_rx_rings;
 		if (dst_nr >= nrings)
@@ -1997,9 +1997,9 @@ retry:
 					slot = &ring->slot[j];
 					dst = NMB(&dst_na->up, slot);
 
-					ND("send [%d] %d(%d) bytes at %s:%d",
-							i, (int)copy_len, (int)dst_len,
-							NM_IFPNAME(dst_ifp), j);
+					//ND("send [%d] %d(%d) bytes at %s:%d",
+					//		i, (int)copy_len, (int)dst_len,
+					//		NM_IFPNAME(dst_ifp), j);
 					/* round to a multiple of 64 */
 					copy_len = (copy_len + 63) & ~63;
 
@@ -2689,11 +2689,11 @@ netmap_bwrap_notify(struct netmap_kring *kring, int flags)
 
 	/* first step: simulate a user wakeup on the rx ring */
 	netmap_vp_rxsync(kring, flags);
-	ND("%s[%d] PRE rx(c%3d t%3d l%3d) ring(h%3d c%3d t%3d) tx(c%3d ht%3d t%3d)",
-		na->name, ring_n,
-		kring->nr_hwcur, kring->nr_hwtail, kring->nkr_hwlease,
-		ring->head, ring->cur, ring->tail,
-		hw_kring->nr_hwcur, hw_kring->nr_hwtail, hw_ring->rtail);
+	//ND("%s[%d] PRE rx(c%3d t%3d l%3d) ring(h%3d c%3d t%3d) tx(c%3d ht%3d t%3d)",
+	//	na->name, ring_n,
+	//	kring->nr_hwcur, kring->nr_hwtail, kring->nkr_hwlease,
+	//	ring->head, ring->cur, ring->tail,
+	//	hw_kring->nr_hwcur, hw_kring->nr_hwtail, hw_ring->rtail);
 	/* second step: the new packets are sent on the tx ring
 	 * (which is actually the same ring)
 	 */
@@ -2708,11 +2708,11 @@ netmap_bwrap_notify(struct netmap_kring *kring, int flags)
 
 	/* fourth step: the user goes to sleep again, causing another rxsync */
 	netmap_vp_rxsync(kring, flags);
-	ND("%s[%d] PST rx(c%3d t%3d l%3d) ring(h%3d c%3d t%3d) tx(c%3d ht%3d t%3d)",
-		na->name, ring_n,
-		kring->nr_hwcur, kring->nr_hwtail, kring->nkr_hwlease,
-		ring->head, ring->cur, ring->tail,
-		hw_kring->nr_hwcur, hw_kring->nr_hwtail, hw_kring->rtail);
+	//ND("%s[%d] PST rx(c%3d t%3d l%3d) ring(h%3d c%3d t%3d) tx(c%3d ht%3d t%3d)",
+	//	na->name, ring_n,
+	//	kring->nr_hwcur, kring->nr_hwtail, kring->nkr_hwlease,
+	//	ring->head, ring->cur, ring->tail,
+	//	hw_kring->nr_hwcur, hw_kring->nr_hwtail, hw_kring->rtail);
 put_out:
 	nm_kr_put(hw_kring);
 
@@ -2846,10 +2846,10 @@ netmap_bwrap_attach(const char *nr_name, struct netmap_adapter *hwna)
 		bna->host.mfs = NM_BDG_MFS_DEFAULT;
 	}
 
-	ND("%s<->%s txr %d txd %d rxr %d rxd %d",
-		na->name, ifp->if_xname,
-		na->num_tx_rings, na->num_tx_desc,
-		na->num_rx_rings, na->num_rx_desc);
+	//ND("%s<->%s txr %d txd %d rxr %d rxd %d",
+	//	na->name, ifp->if_xname,
+	//	na->num_tx_rings, na->num_tx_desc,
+	//	na->num_rx_rings, na->num_rx_desc);
 
 	error = netmap_attach_common(na);
 	if (error) {

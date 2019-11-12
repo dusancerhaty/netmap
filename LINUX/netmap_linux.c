@@ -528,7 +528,7 @@ generic_qdisc_enqueue(struct mbuf *m, struct Qdisc *qdisc
 		/* or qdisc_reshape_fail() ? */
 	}
 
-	ND(5, "Enqueuing mbuf, len %u", qdisc_qlen(qdisc));
+	ND("Enqueuing mbuf, len %u", qdisc_qlen(qdisc));
 
 	return qdisc_enqueue_tail(m, qdisc);
 }
@@ -547,12 +547,12 @@ generic_qdisc_dequeue(struct Qdisc *qdisc)
              * We have to set the priority to the normal TX token, so that
              * generic_ndo_start_xmit can pass it to the driver. */
             m->priority = NM_MAGIC_PRIORITY_TX;
-            ND(5, "Event met, notify %p", m);
+            ND("Event met, notify %p", m);
             netmap_generic_irq(NA(qdisc_dev(qdisc)),
                                skb_get_queue_mapping(m), NULL);
         }
 
-	ND(5, "Dequeuing mbuf, len %u", qdisc_qlen(qdisc));
+	ND("Dequeuing mbuf, len %u", qdisc_qlen(qdisc));
 
 	return m;
 }

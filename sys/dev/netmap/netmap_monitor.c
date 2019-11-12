@@ -587,7 +587,7 @@ netmap_zmon_parent_sync(struct netmap_kring *kring, int flags, enum txrx tx)
 		tmp = ms->buf_idx;
 		ms->buf_idx = s->buf_idx;
 		s->buf_idx = tmp;
-		ND(5, "beg %d buf_idx %d", beg, tmp);
+		ND("beg %d buf_idx %d", beg, tmp);
 
 		tmp = ms->len;
 		ms->len = s->len;
@@ -781,7 +781,7 @@ static int
 netmap_monitor_parent_notify(struct netmap_kring *kring, int flags)
 {
 	int (*notify)(struct netmap_kring*, int);
-	ND(5, "%s %x", kring->name, flags);
+	ND("%s %x", kring->name, flags);
 	/* ?xsync callbacks have tryget called by their callers
 	 * (NIOCREGIF and poll()), but here we have to call it
 	 * by ourself

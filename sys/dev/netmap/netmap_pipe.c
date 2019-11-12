@@ -183,7 +183,7 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
 	struct netmap_ring *txring = txkring->ring, *rxring = rxkring->ring;
 
         ND("%p: %s %x -> %s", txkring, txkring->name, flags, rxkring->name);
-        ND(2, "before: hwcur %d hwtail %d cur %d head %d tail %d", txkring->nr_hwcur, txkring->nr_hwtail,
+        ND("before: hwcur %d hwtail %d cur %d head %d tail %d", txkring->nr_hwcur, txkring->nr_hwtail,
                 txkring->rcur, txkring->rhead, txkring->rtail);
 
         j = rxkring->nr_hwtail; /* RX */
@@ -197,7 +197,7 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
 	if (busy < 0)
 		busy += rxkring->nkr_num_slots;
 	m -= busy; /* subtract busy slots */
-        ND(2, "m %d limit %d", m, limit);
+        ND("m %d limit %d", m, limit);
         if (m < limit)
                 limit = m;
 
@@ -229,7 +229,7 @@ netmap_pipe_txsync(struct netmap_kring *txkring, int flags)
         txkring->nr_hwcur = k;
         txkring->nr_hwtail = nm_prev(k, lim_tx);
 
-        ND(2, "after: hwcur %d hwtail %d cur %d head %d tail %d j %d", txkring->nr_hwcur, txkring->nr_hwtail,
+        ND("after: hwcur %d hwtail %d cur %d head %d tail %d j %d", txkring->nr_hwcur, txkring->nr_hwtail,
                 txkring->rcur, txkring->rhead, txkring->rtail, j);
 
         mb(); /* make sure rxkring->nr_hwtail is updated before notifying */
@@ -246,7 +246,7 @@ netmap_pipe_rxsync(struct netmap_kring *rxkring, int flags)
 
         ND("%s %x <- %s", rxkring->name, flags, txkring->name);
         rxkring->nr_hwcur = rxkring->rhead; /* recover user-relased slots */
-        ND(5, "hwcur %d hwtail %d cur %d head %d tail %d", rxkring->nr_hwcur, rxkring->nr_hwtail,
+        ND("hwcur %d hwtail %d cur %d head %d tail %d", rxkring->nr_hwcur, rxkring->nr_hwtail,
                 rxkring->rcur, rxkring->rhead, rxkring->rtail);
         mb(); /* paired with the first mb() in txsync */
 

@@ -145,7 +145,7 @@ nm_os_get_mbuf(struct ifnet *ifp, int len)
 		m->m_ext.ext_arg1 = m->m_ext.ext_buf; // XXX save
 		m->m_ext.ext_free = (void *)void_mbuf_dtor;
 		m->m_ext.ext_type = EXT_EXTREF;
-		ND(5, "create m %p refcnt %d", m, MBUF_REFCNT(m));
+		ND("create m %p refcnt %d", m, MBUF_REFCNT(m));
 	}
 	return m;
 }
@@ -768,7 +768,7 @@ generic_set_tx_event(struct netmap_kring *kring, u_int hwcur)
 
 	kring->tx_pool[e] = NULL;
 
-	ND(5, "Request Event at %d mbuf %p refcnt %d", e, m, m ? MBUF_REFCNT(m) : -2 );
+	ND("Request Event at %d mbuf %p refcnt %d", e, m, m ? MBUF_REFCNT(m) : -2 );
 
 	/* Decrement the refcount. This will free it if we lose the race
 	 * with the driver. */
@@ -813,7 +813,7 @@ generic_netmap_txsync(struct netmap_kring *kring, int flags)
 			 * but only when cur == hwtail, which means that the
 			 * client is going to block. */
 			event = ring_middle(nm_i, head, lim);
-			ND(3, "Place txqdisc event (hwcur=%u,event=%u,"
+			ND("Place txqdisc event (hwcur=%u,event=%u,"
 			      "head=%u,hwtail=%u)", nm_i, event, head,
 			      kring->nr_hwtail);
 		}

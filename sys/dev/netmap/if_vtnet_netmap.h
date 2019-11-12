@@ -171,12 +171,12 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 		 * possibly only when a considerable amount of work has been
 		 * done.
 		 */
-		ND(3,"sent %d packets, hwcur %d", n, nm_i);
+		ND("sent %d packets, hwcur %d", n, nm_i);
 		virtqueue_disable_intr(vq);
 		virtqueue_notify(vq);
 	} else {
 		if (ring->head != ring->tail)
-		    ND(5, "pure notify ? head %d tail %d nused %d %d",
+		    ND("pure notify ? head %d tail %d nused %d %d",
 			ring->head, ring->tail, virtqueue_nused(vq),
 			(virtqueue_dump(vq), 1));
 		virtqueue_notify(vq);
@@ -210,10 +210,10 @@ vtnet_netmap_txsync(struct netmap_kring *kring, int flags)
 			kring->nr_hwtail -= lim + 1;
 	}
 	if (nm_i != kring->nr_hwtail /* && vtnet_txq_below_threshold(txq) == 0*/) {
-		ND(3, "disable intr, hwcur %d", nm_i);
+		ND("disable intr, hwcur %d", nm_i);
 		virtqueue_disable_intr(vq);
 	} else if (interrupts) {
-		ND(3, "enable intr, hwcur %d", nm_i);
+		ND("enable intr, hwcur %d", nm_i);
 		virtqueue_postpone_intr(vq, VQ_POSTPONE_SHORT);
 	}
 

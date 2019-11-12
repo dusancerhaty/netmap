@@ -1298,7 +1298,7 @@ netmap_knrw(struct knote *kn, long hint, int events)
 	int revents;
 
 	if (hint != 0) {
-		ND(5, "call from notify");
+		ND("call from notify");
 		return 1; /* assume we are ready */
 	}
 	priv = kn->kn_hook;

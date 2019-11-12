@@ -1580,7 +1580,7 @@ nm_txsync_prologue(struct netmap_kring *kring, struct netmap_ring *ring)
 	u_int cur = ring->cur; /* read only once */
 	u_int n = kring->nkr_num_slots;
 
-	ND(5, "%s kcur %d ktail %d head %d cur %d tail %d",
+	ND("%s kcur %d ktail %d head %d cur %d tail %d",
 		kring->name,
 		kring->nr_hwcur, kring->nr_hwtail,
 		ring->head, ring->cur, ring->tail);
@@ -1643,7 +1643,7 @@ nm_rxsync_prologue(struct netmap_kring *kring, struct netmap_ring *ring)
 	uint32_t const n = kring->nkr_num_slots;
 	uint32_t head, cur;
 
-	ND(5,"%s kc %d kt %d h %d c %d t %d",
+	ND("%s kc %d kt %d h %d c %d t %d",
 		kring->name,
 		kring->nr_hwcur, kring->nr_hwtail,
 		ring->head, ring->cur, ring->tail);
@@ -1964,7 +1964,7 @@ netmap_krings_put(struct netmap_priv_d *priv)
 			priv->np_qfirst[NR_TX],
 			priv->np_qlast[NR_TX],
 			priv->np_qfirst[NR_RX],
-			priv->np_qlast[MR_RX]);
+			priv->np_qlast[NR_RX]);
 
 
 	for_rx_tx(t) {
@@ -2167,7 +2167,7 @@ nm_sync_finalize(struct netmap_kring *kring)
 	 */
 	kring->ring->tail = kring->rtail = kring->nr_hwtail;
 
-	ND(5, "%s now hwcur %d hwtail %d head %d cur %d tail %d",
+	ND("%s now hwcur %d hwtail %d head %d cur %d tail %d",
 		kring->name, kring->nr_hwcur, kring->nr_hwtail,
 		kring->rhead, kring->rcur, kring->rtail);
 }
@@ -3274,7 +3274,7 @@ netmap_transmit(struct ifnet *ifp, struct mbuf *m)
 			kring->nr_hwcur, kring->nr_hwtail, mbq_len(q));
 	} else {
 		mbq_enqueue(q, m);
-		ND(2, "%s %d bufs in queue", na->name, mbq_len(q));
+		ND("%s %d bufs in queue", na->name, mbq_len(q));
 		/* notify outside the lock */
 		m = NULL;
 		error = 0;

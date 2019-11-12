@@ -464,7 +464,7 @@ q_reclaim(struct _qs *q)
 	p = p0 = pkt_at(q, q->prod_tail_1);
 	/* always reclaim queued packets */
 	while (ts_cmp(p->pt_qout, q->prod_now) <= 0 && q->prod_queued > 0) {
-	    ND(1, "reclaim pkt at %ld len %d left %ld", q->prod_tail_1, p->pktlen, q->prod_queued);
+	    ND("reclaim pkt at %ld len %d left %ld", q->prod_tail_1, p->pktlen, q->prod_queued);
 	    q->prod_queued -= p->pktlen;
 	    q->prod_tail_1 = p->next;
 	    p = pkt_at(q, q->prod_tail_1);
@@ -523,7 +523,7 @@ no_room(struct _qs *q)
 	h = q->prod_head = q->head; /* re-read head, just in case */
 	/* repeat the test */
 	if ((h <= t && new_t == 0 && h == 0) || (h > t && (new_t == 0 || new_t >= h)) ) {
-	    ND(1, "no room for insert h %lld t %lld new_t %lld",
+	    ND("no room for insert h %lld t %lld new_t %lld",
 		(long long)h, (long long)t, (long long)new_t);
 	    return 1; /* no room for insert */
 	}
@@ -547,7 +547,7 @@ enq(struct _qs *q)
     p->pktlen = q->cur_len;
     p->pt_qout = q->qt_qout;
     p->pt_tx = q->qt_tx;
-    ND(1, "enqueue len %d at %d new tail %ld qout %ld tx %ld",
+    ND("enqueue len %d at %d new tail %ld qout %ld tx %ld",
 	q->cur_len, (int)q->prod_tail, p->next,
 	p->pt_qout, p->pt_tx);
     q->prod_tail = p->next;
@@ -566,7 +566,7 @@ rx_queued(struct nm_desc *d)
     for (i = d->first_rx_ring; i <= d->last_rx_ring; i++) {
 	struct netmap_ring *rxr = NETMAP_RXRING(d->nifp, i);
 
-	ND(5, "ring %d h %d cur %d tail %d", i,
+	ND("ring %d h %d cur %d tail %d", i,
 		rxr->head, rxr->cur, rxr->tail);
 	tot += nm_ring_space(rxr);
     }
@@ -603,7 +603,7 @@ wait_for_packets(struct _qs *q)
 	    pfd.fd = q->src_port->fd;
 	    pfd.revents = 0;
 	    pfd.events = POLLIN;
-	    ND(1, "prepare for poll on %s", q->prod_ifname);
+	    ND("prepare for poll on %s", q->prod_ifname);
 	    ret = poll(&pfd, 1, 10000);
 	    if (ret <= 0 || verbose) {
 		D("poll %s ev %x %x rx %d@%d",
@@ -629,7 +629,7 @@ wait_for_packets(struct _qs *q)
     if (prev > 0 && (prev = q->prod_now - prev) > q->prod_max_gap) {
 	q->prod_max_gap = prev;
     }
-    ND(10, "%s %d queued packets at %ld ms",
+    ND("%s %d queued packets at %ld ms",
 	q->prod_ifname, n0, (q->prod_now/1000000) % 10000);
 }
 
@@ -666,7 +666,7 @@ scan_ring(struct _qs *q, int next /* bool */)
 
     /* fast path for the first two */
     if (likely(next != 0)) { /* current ring */
-	ND(10, "scan next");
+	ND("scan next");
 	/* advance */
 	rxr->head = rxr->cur = nm_ring_next(rxr, rxr->cur);
 	if (!nm_ring_empty(rxr)) /* good one */
@@ -674,7 +674,7 @@ scan_ring(struct _qs *q, int next /* bool */)
 	q->si++;	/* otherwise update and fallthrough */
     } else { /* scan from beginning */
 	q->si = pa->first_rx_ring;
-	ND(10, "scanning first ring %d", q->si);
+	ND("scanning first ring %d", q->si);
     }
     while (q->si <= pa->last_rx_ring) {
 	q->rxring = rxr = NETMAP_RXRING(pa->nifp, q->si);
@@ -684,7 +684,7 @@ scan_ring(struct _qs *q, int next /* bool */)
 	continue;
     }
     if (q->si > pa->last_rx_ring) { /* no data, cur == tail */
-        ND(5, "no more pkts on %s", q->prod_ifname);
+        ND("no more pkts on %s", q->prod_ifname);
 	return;
     }
 got_one:
@@ -702,7 +702,7 @@ got_one:
     //prefetch_packet(rxr, 1); not much better than prefetching q->cur_pkt, one line
     __builtin_prefetch(q->cur_pkt);
     __builtin_prefetch(rs+1); /* one row ahead ? */
-    ND(10, "-------- slot %d tail %d len %d buf %p", rxr->cur, rxr->tail, q->cur_len, q->cur_pkt);
+    ND("-------- slot %d tail %d len %d buf %p", rxr->cur, rxr->tail, q->cur_len, q->cur_pkt);
 }
 
 /*
@@ -766,7 +766,7 @@ prod(void *_pa)
 		continue;
 	    q->c_delay.run(q, &q->c_delay); /* compute delay */
 	    t_tx = q->qt_qout + q->cur_delay;
-	    ND(5, "tt %ld qout %ld tx %ld qt_tx %ld", tt, q->qt_qout, t_tx, q->qt_tx);
+	    ND("tt %ld qout %ld tx %ld qt_tx %ld", tt, q->qt_qout, t_tx, q->qt_tx);
 	    /* insure no reordering and spacing by transmission time */
 	    q->qt_tx = (t_tx >= q->qt_tx + tt) ? t_tx : q->qt_tx + tt;
 	    enq(q);
@@ -818,7 +818,7 @@ cons(void *_pa)
 #endif
 
 	if (q->head == q->tail || ts_cmp(p->pt_tx, q->cons_now) > 0) {
-	    ND(4, "                 >>>> TXSYNC, pkt not ready yet h %ld t %ld now %ld tx %ld",
+	    ND("                 >>>> TXSYNC, pkt not ready yet h %ld t %ld now %ld tx %ld",
 		q->head, q->tail, q->cons_now, p->pt_tx);
 	    q->rx_wait++;
 	    ioctl(pa->pb->fd, NIOCTXSYNC, 0); // XXX just in case
@@ -827,11 +827,11 @@ cons(void *_pa)
 	    set_tns_now(&q->cons_now, q->t0);
 	    continue;
 	}
-	ND(5, "drain len %ld now %ld tx %ld h %ld t %ld next %ld",
+	ND("drain len %ld now %ld tx %ld h %ld t %ld next %ld",
 		p->pktlen, q->cons_now, p->pt_tx, q->head, q->tail, p->next);
 	/* XXX inefficient but simple */
 	if (nm_inject(pa->pb, (char *)(p + 1), p->pktlen) == 0) {
-	    ND(5, "inject failed len %d now %ld tx %ld h %ld t %ld next %ld",
+	    ND("inject failed len %d now %ld tx %ld h %ld t %ld next %ld",
 		(int)p->pktlen, q->cons_now, p->pt_tx, q->head, q->tail, p->next);
 	    ioctl(pa->pb->fd, NIOCTXSYNC, 0);
 	    pending = 0;
@@ -1608,7 +1608,7 @@ exp_delay_parse(struct _qs *q, struct _cfg *dst, int ac, char *av[])
 	for (i = 0; i < PTS_D_EXP; i++) {
 		double d = -log2 ((double)(PTS_D_EXP - i) / PTS_D_EXP) * d_av + d_min;
 		t[i] = (uint64_t)d;
-		ND(5, "%ld: %le", i, d);
+		ND("%ld: %le", i, d);
 	}
         return 0;
 }
