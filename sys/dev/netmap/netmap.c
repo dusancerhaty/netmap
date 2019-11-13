@@ -2518,7 +2518,7 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data, struct thread
 	return (error);
 }
 
-int nm_open_internally(const char *ifname, struct netmap_adapter *m_na,
+int netmap_kopen(const char *ifname, struct netmap_adapter *m_na,
 	struct nmreq *req, uint64_t new_flags)
 {
 	struct netmap_mem_d *nmd = NULL;

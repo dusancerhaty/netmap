@@ -306,18 +306,18 @@ ring_reset:
 }
 
 static int
-igb_netmap_init_rings_internally(struct netmap_adapter* na)
+igb_netmap_init_rings_internally(struct SOFTC_T *adapter)
 {
-	struct ifnet *ifp = na->ifp;
-	struct SOFTC_T *adapter = netdev_priv(ifp);
+	struct ifnet *ifp = adapter->netdev;
 	struct net_device *netdev = adapter->netdev;
+	struct netmap_adapter* na = NA(ifp);
 	struct nmreq req;
 
 	memset(&req, 0, sizeof(req));
 	req.nr_ringid = 0;
 	req.nr_flags &= ~NR_REG_MASK;
 	req.nr_flags |= NR_REG_ONE_NIC;
-	nm_open_internally(netdev->name, na, &req, 0);
+	netmap_kopen(netdev->name, na, &req, 0);
 
 	return 0;
 }
@@ -353,7 +353,6 @@ igb_netmap_configure_rx_ring(struct igb_ring *rxr)
 {
 	struct ifnet *ifp = rxr->netdev;
 	struct netmap_adapter* na = NA(ifp);
-	int init_rings_internally = (na->na_bound != NULL) ? 1 : 0;
 	int reg_idx = rxr->reg_idx;
 	struct netmap_slot* slot;
 	u_int i;
@@ -368,22 +367,9 @@ igb_netmap_configure_rx_ring(struct igb_ring *rxr)
 	 *	srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
 	 *	srrctl |= E1000_SRRCTL_DROP_EN;
 	 */
-	do
-	{
-		slot = netmap_reset(na, NR_RX, reg_idx, 0);
-		if (!slot) {
-			if (!init_rings_internally) {
-				return 0;	// not in native netmap mode
-			}
-		}
-
-		if (!init_rings_internally) {
-			break;
-		}
-
-		init_rings_internally = 0;
-		igb_netmap_init_rings_internally(na);
-	} while (1);
+        slot = netmap_reset(na, NR_RX, reg_idx, 0);
+	if (!slot)
+		return 0;	// not in native netmap mode
 
 	for (i = 0; i < rxr->count; i++) {
 		union e1000_adv_rx_desc *rx_desc;

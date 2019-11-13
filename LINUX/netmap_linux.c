@@ -2304,7 +2304,7 @@ EXPORT_SYMBOL(netmap_pipe_txsync);	/* used by veth module */
 EXPORT_SYMBOL(netmap_pipe_rxsync);	/* used by veth module */
 #endif /* WITH_PIPES */
 EXPORT_SYMBOL(netmap_verbose);
-EXPORT_SYMBOL(nm_open_internally);
+EXPORT_SYMBOL(netmap_kopen);
 
 MODULE_AUTHOR("http://info.iet.unipi.it/~luigi/netmap/");
 MODULE_DESCRIPTION("The netmap packet I/O framework");
