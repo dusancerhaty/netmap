@@ -87,6 +87,16 @@ igb_netmap_reg(struct netmap_adapter *na, int onoff)
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
 		usleep_range(1000, 2000);
 
+	if (na->kopen_flags & KOPEN_FLG_OPENED_IN_KERNEL) {
+		if (onoff) {
+			nm_set_native_flags(na);
+		} else {
+			nm_clear_native_flags(na);
+		}
+		clear_bit(__IGB_RESETTING, &adapter->state);
+		return (0);
+	}
+
 	if (netif_running(adapter->netdev))
 		igb_down(adapter);
 
@@ -306,18 +316,25 @@ ring_reset:
 }
 
 static int
-igb_netmap_init_rings_internally(struct SOFTC_T *adapter)
+igb_netmap_deinit_rings_internally(struct SOFTC_T *adapter)
 {
 	struct ifnet *ifp = adapter->netdev;
-	struct net_device *netdev = adapter->netdev;
 	struct netmap_adapter* na = NA(ifp);
+
+	return netmap_kclose(na);
+}
+
+static int
+igb_netmap_init_rings_internally(struct SOFTC_T *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
 	struct nmreq req;
 
 	memset(&req, 0, sizeof(req));
 	req.nr_ringid = 0;
 	req.nr_flags &= ~NR_REG_MASK;
 	req.nr_flags |= NR_REG_ONE_NIC;
-	netmap_kopen(netdev->name, na, &req, 0);
+	netmap_kopen(netdev->name, &req, 0);
 
 	return 0;
 }

@@ -876,7 +876,8 @@ netmap_linux_config(struct netmap_adapter *na,
 	struct ifnet *ifp = na->ifp;
 	int error = 0;
 
-	rtnl_lock();
+	if (!(na->kopen_flags & KOPEN_FLG_OPENED_IN_KERNEL))
+		nm_os_ifnet_lock();
 
 	if (ifp == NULL) {
 		D("zombie adapter");
@@ -889,7 +890,8 @@ netmap_linux_config(struct netmap_adapter *na,
 	nm_os_generic_find_num_queues(ifp, txr, rxr);
 
 out:
-	rtnl_unlock();
+	if (!(na->kopen_flags & KOPEN_FLG_OPENED_IN_KERNEL))
+		nm_os_ifnet_unlock();
 
 	return error;
 }
@@ -2305,6 +2307,7 @@ EXPORT_SYMBOL(netmap_pipe_rxsync);	/* used by veth module */
 #endif /* WITH_PIPES */
 EXPORT_SYMBOL(netmap_verbose);
 EXPORT_SYMBOL(netmap_kopen);
+EXPORT_SYMBOL(netmap_kclose);
 
 MODULE_AUTHOR("http://info.iet.unipi.it/~luigi/netmap/");
 MODULE_DESCRIPTION("The netmap packet I/O framework");

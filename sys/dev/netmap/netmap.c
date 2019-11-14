@@ -2518,14 +2518,13 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data, struct thread
 	return (error);
 }
 
-int netmap_kopen(const char *ifname, struct netmap_adapter *m_na,
-	struct nmreq *req, uint64_t new_flags)
+int netmap_kopen(const char *ifname, struct nmreq *req, uint64_t new_flags)
 {
 	struct netmap_mem_d *nmd = NULL;
 	struct netmap_adapter *na = NULL;
 	struct ifnet *ifp = NULL;
 	struct netmap_if *nifp;
-	struct netmap_priv_d priv;
+	struct netmap_priv_d *priv;
 	int error = 0;
 	enum txrx t;
 
@@ -2537,16 +2536,10 @@ int netmap_kopen(const char *ifname, struct netmap_adapter *m_na,
 	/* add the *XPOLL flags */
 	req->nr_ringid |= new_flags & (NETMAP_NO_TX_POLL | NETMAP_DO_RX_POLL);
 
-	//if (ioctl(d->fd, NIOCREGIF, &d->req)) {
-	//	return -1;
-	//}
 	/* protect access to priv from concurrent NIOCREGIF */
 	NMG_LOCK();
 	do {
 		u_int memflags;
-
-		memset(&priv, 0, sizeof(priv));
-		priv.np_refs = 1;
 
 		/* find the interface and a reference */
 		error = netmap_get_na(req, &na, &ifp, nmd,
@@ -2557,18 +2550,25 @@ int netmap_kopen(const char *ifname, struct netmap_adapter *m_na,
 			error = EBUSY;
 			break;
 		}
+		priv = na->kopen_priv == NULL ? netmap_priv_new() : na->kopen_priv;
+		if (priv == NULL) {
+			error = ENOMEM;
+			break;
+		}
+		na->kopen_priv = priv;
+		na->kopen_flags |= KOPEN_FLG_OPENED_IN_KERNEL;
 
 		if (na->virt_hdr_len && !(req->nr_flags & NR_ACCEPT_VNET_HDR)) {
 			error = EIO;
 			break;
 		}
 
-		error = netmap_do_regif(&priv, na, req->nr_ringid, req->nr_flags);
+		error = netmap_do_regif(priv, na, req->nr_ringid, req->nr_flags);
 		if (error) {    /* reg. failed, release priv and ref */
 			break;
 		}
-		nifp = priv.np_nifp;
-		priv.np_td = NULL; // XXX kqueue, debugging only
+		nifp = priv->np_nifp;
+		priv->np_td = NULL; // XXX kqueue, debugging only
 
 		/* return the offset of the netmap_if object */
 		req->nr_rx_rings = na->num_rx_rings;
@@ -2578,24 +2578,25 @@ int netmap_kopen(const char *ifname, struct netmap_adapter *m_na,
 		error = netmap_mem_get_info(na->nm_mem, &req->nr_memsize, &memflags,
 			&req->nr_arg2);
 		if (error) {
-			netmap_do_unregif(&priv);
+			netmap_do_unregif(priv);
 			break;
 		}
 		if (memflags & NETMAP_MEM_PRIVATE) {
 			*(uint32_t *)(uintptr_t)&nifp->ni_flags |= NI_PRIV_MEM;
 		}
 		for_rx_tx(t) {
-			priv.np_si[t] = nm_si_user(&priv, t) ?
-				&na->si[t] : &NMR(na, t)[priv.np_qfirst[t]].si;
+			priv->np_si[t] = nm_si_user(priv, t) ?
+				&na->si[t] : &NMR(na, t)[priv->np_qfirst[t]].si;
 		}
 
 		req->nr_offset = netmap_mem_if_offset(na->nm_mem, nifp);
 
 		/* store ifp reference so that priv destructor may release it */
-		priv.np_ifp = ifp;
+		priv->np_ifp = ifp;
 	} while (0);
 	if (error) {
 		netmap_unget_na(na, ifp);
+		na->kopen_flags &= ~(KOPEN_FLG_OPENED_IN_KERNEL);
 	}
 	/* release the reference from netmap_mem_find() or
 	 * netmap_mem_ext_create()
@@ -2605,6 +2606,16 @@ int netmap_kopen(const char *ifname, struct netmap_adapter *m_na,
 	NMG_UNLOCK();
 
 	return (error);
+}
+
+int netmap_kclose(struct netmap_adapter *na)
+{
+	if (na->kopen_priv)
+		netmap_dtor(na->kopen_priv);
+
+	na->kopen_priv = NULL;
+
+	return 0;
 }
 
 /*
@@ -2992,7 +3003,8 @@ netmap_hw_reg(struct netmap_adapter *na, int onoff)
 		(struct netmap_hw_adapter*)na;
 	int error = 0;
 
-	nm_os_ifnet_lock();
+	if (!(na->kopen_flags & KOPEN_FLG_OPENED_IN_KERNEL))
+		nm_os_ifnet_lock();
 
 	if (nm_iszombie(na)) {
 		if (onoff) {
@@ -3006,7 +3018,8 @@ netmap_hw_reg(struct netmap_adapter *na, int onoff)
 	error = hwna->nm_hw_register(na, onoff);
 
 out:
-	nm_os_ifnet_unlock();
+	if (!(na->kopen_flags & KOPEN_FLG_OPENED_IN_KERNEL))
+		nm_os_ifnet_unlock();
 
 	return error;
 }

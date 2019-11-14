@@ -957,7 +957,7 @@ netmap_obj_malloc(struct netmap_obj_pool *p, u_int len, uint32_t *start, uint32_
 		if (index)
 			*index = i * 32 + j;
 	}
-	ND("%s allocator: allocated object @ [%d][%d]: vaddr %p",p->name, i, j, vaddr);
+	//ND("%s allocator: allocated object @ [%d][%d]: vaddr %p",p->name, i, j, vaddr);
 
 	if (start)
 		*start = i;

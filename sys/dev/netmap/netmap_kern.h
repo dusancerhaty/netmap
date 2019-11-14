@@ -162,8 +162,8 @@ struct hrtimer {
 #define NM_MTX_T	struct mutex	/* OS-specific sleepable lock */
 #define NM_MTX_INIT(m)	mutex_init(&(m))
 #define NM_MTX_DESTROY(m)	do { (void)(m); } while (0)
-#define NM_MTX_LOCK(m)		mutex_lock(&(m))
-#define NM_MTX_UNLOCK(m)	mutex_unlock(&(m))
+#define NM_MTX_LOCK(m)		mutex_lock(&(m));
+#define NM_MTX_UNLOCK(m)	mutex_unlock(&(m));
 #define NM_MTX_ASSERT(m)	mutex_is_locked(&(m))
 
 #ifndef DEV_NETMAP
@@ -837,7 +837,10 @@ struct netmap_adapter {
 
 	char name[64];
 
+	struct netmap_priv_d *kopen_priv;
 	struct netmap_adapter *na_bound;
+#define KOPEN_FLG_OPENED_IN_KERNEL 0x0001
+	unsigned int kopen_flags;
 };
 
 static __inline u_int
@@ -1522,8 +1525,8 @@ void netmap_dtor(void *data);
 
 int netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data, struct thread *);
 
-int netmap_kopen(const char *ifname, struct netmap_adapter *m_na,
-	struct nmreq *req, uint64_t new_flags);
+int netmap_kopen(const char *ifname, struct nmreq *req, uint64_t new_flags);
+int netmap_kclose(struct netmap_adapter *na);
 
 /* netmap_adapter creation/destruction */
 
