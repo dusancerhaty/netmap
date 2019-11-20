@@ -328,8 +328,12 @@ static int
 igb_netmap_init_rings_internally(struct SOFTC_T *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
+	struct ifnet *ifp = adapter->netdev;
+	struct netmap_adapter* na = NA(ifp);
 	struct nmreq req;
 
+	if (na->kopen_priv)
+		return 0;
 	memset(&req, 0, sizeof(req));
 	req.nr_ringid = 0;
 	req.nr_flags &= ~NR_REG_MASK;
