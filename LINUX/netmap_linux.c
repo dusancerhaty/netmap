@@ -2308,6 +2308,7 @@ EXPORT_SYMBOL(netmap_pipe_rxsync);	/* used by veth module */
 EXPORT_SYMBOL(netmap_verbose);
 EXPORT_SYMBOL(netmap_kopen);
 EXPORT_SYMBOL(netmap_kclose);
+EXPORT_SYMBOL(netmap_ksync);
 
 MODULE_AUTHOR("http://info.iet.unipi.it/~luigi/netmap/");
 MODULE_DESCRIPTION("The netmap packet I/O framework");

@@ -1527,6 +1527,7 @@ int netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data, struct th
 
 int netmap_kopen(const char *ifname, struct nmreq *req, uint64_t new_flags);
 int netmap_kclose(struct netmap_adapter *na);
+int netmap_ksync(struct ifnet *ifp, u_long cmd);
 
 /* netmap_adapter creation/destruction */
 

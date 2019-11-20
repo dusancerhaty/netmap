@@ -1580,10 +1580,11 @@ nm_txsync_prologue(struct netmap_kring *kring, struct netmap_ring *ring)
 	u_int cur = ring->cur; /* read only once */
 	u_int n = kring->nkr_num_slots;
 
-	ND("%s kcur %d ktail %d head %d cur %d tail %d",
-		kring->name,
-		kring->nr_hwcur, kring->nr_hwtail,
-		ring->head, ring->cur, ring->tail);
+	if (netmap_verbose & NM_VERB_TXSYNC)
+		ND("%s kcur %d ktail %d head %d cur %d tail %d",
+			kring->name,
+			kring->nr_hwcur, kring->nr_hwtail,
+			ring->head, ring->cur, ring->tail);
 #if 1 /* kernel sanity checks; but we can trust the kring. */
 	NM_FAIL_ON(kring->nr_hwcur >= n || kring->rhead >= n ||
 	    kring->rtail >= n ||  kring->nr_hwtail >= n);
@@ -1643,10 +1644,11 @@ nm_rxsync_prologue(struct netmap_kring *kring, struct netmap_ring *ring)
 	uint32_t const n = kring->nkr_num_slots;
 	uint32_t head, cur;
 
-	ND("%s kc %d kt %d h %d c %d t %d",
-		kring->name,
-		kring->nr_hwcur, kring->nr_hwtail,
-		ring->head, ring->cur, ring->tail);
+	if (netmap_verbose & NM_VERB_RXSYNC)
+		ND("%s kc %d kt %d h %d c %d t %d",
+			kring->name,
+			kring->nr_hwcur, kring->nr_hwtail,
+			ring->head, ring->cur, ring->tail);
 	/*
 	 * Before storing the new values, we should check they do not
 	 * move backwards. However:
@@ -2167,9 +2169,10 @@ nm_sync_finalize(struct netmap_kring *kring)
 	 */
 	kring->ring->tail = kring->rtail = kring->nr_hwtail;
 
-	ND("%s now hwcur %d hwtail %d head %d cur %d tail %d",
-		kring->name, kring->nr_hwcur, kring->nr_hwtail,
-		kring->rhead, kring->rcur, kring->rtail);
+	if (netmap_verbose & NM_VERB_ON)
+		ND("%s now hwcur %d hwtail %d head %d cur %d tail %d",
+			kring->name, kring->nr_hwcur, kring->nr_hwtail,
+			kring->rhead, kring->rcur, kring->rtail);
 }
 
 /* set ring timestamp */
@@ -2616,6 +2619,124 @@ int netmap_kclose(struct netmap_adapter *na)
 	na->kopen_priv = NULL;
 
 	return 0;
+}
+
+int netmap_ksync(struct ifnet *ifp, u_long cmd)
+{
+	struct netmap_adapter *na = NA(ifp);
+	struct netmap_adapter *na_bound = na->na_bound;
+	struct netmap_priv_d *priv = na->kopen_priv;
+	struct netmap_if *nifp = priv->np_nifp;
+	int error = 0;
+	u_int i, qfirst, qlast;
+	struct netmap_kring *krings;
+	struct netmap_kring *krings_bound;
+	int sync_flags;
+	enum txrx t;
+
+	if (!nm_netmap_on(na))
+		return NM_IRQ_PASS;
+
+	if (nifp == NULL) {
+		error = ENXIO;
+		return NM_IRQ_COMPLETED;
+	}
+	mb(); /* make sure following reads are not from cache */
+
+	t = (cmd == NIOCTXSYNC ? NR_TX : NR_RX);
+	krings = NMR(na, t);
+	qfirst = priv->np_qfirst[t];
+	qlast = priv->np_qlast[t];
+	sync_flags = priv->np_sync_flags;
+	krings_bound = na_bound != NULL ? NMR(na_bound, NR_TX) : NULL;
+	if (krings_bound == NULL)	{
+		return NM_IRQ_COMPLETED;
+	}
+
+	for (i = qfirst; i < qlast; i++) {
+		struct netmap_kring *kring = krings + i;
+		struct netmap_ring *ring = kring->ring;
+		struct netmap_kring *kring_tx = krings_bound != NULL ? krings_bound + i : NULL;
+		struct netmap_ring *ring_tx;// = kring_tx != NULL ? kring_tx->ring : NULL;
+		int nm_sync_ok;
+		struct netmap_slot *slot;
+		struct netmap_slot *slot_tx;
+		int cnt;
+		int j;
+		uint32_t cur;
+		uint32_t cur_tx;
+		uint32_t tmp;
+
+		if (unlikely(nm_kr_tryget(kring, 1, &error))) {
+			error = (error ? EIO : 0);
+			continue;
+		}
+
+		nm_sync_ok = 0;
+		if (cmd == NIOCTXSYNC) {
+			if (netmap_verbose & NM_VERB_TXSYNC)
+				D("pre txsync ring %d cur %d hwcur %d",
+				    i, ring->cur,
+				    kring->nr_hwcur);
+			if (nm_txsync_prologue(kring, ring) >= kring->nkr_num_slots) {
+				netmap_ring_reinit(kring);
+			} else if (kring->nm_sync(kring, sync_flags | NAF_FORCE_RECLAIM) == 0) {
+				nm_sync_ok = 1;
+				nm_sync_finalize(kring);
+			}
+			if (netmap_verbose & NM_VERB_TXSYNC)
+				D("post txsync ring %d cur %d hwcur %d",
+				    i, ring->cur,
+				    kring->nr_hwcur);
+		} else {
+			if (netmap_verbose & NM_VERB_RXSYNC)
+				D("pre rxsync ring %d cur %d hwcur %d",
+					i, ring->cur,
+					kring->nr_hwcur);
+			if (nm_rxsync_prologue(kring, ring) >= kring->nkr_num_slots) {
+				netmap_ring_reinit(kring);
+			}
+			if (kring->nm_sync(kring, sync_flags | NAF_FORCE_READ) == 0) {
+				nm_sync_ok = 1;
+				nm_sync_finalize(kring);
+			}
+			ring_timestamp_set(ring);
+
+			if (nm_sync_ok) {
+				cnt = ring->tail - ring->cur;
+				if (cnt < 0)
+					cnt += ring->num_slots;
+				cur = ring->cur;
+				ring_tx = kring_tx->ring;
+				cur_tx = ring_tx->cur;
+				for (j = 0; j < cnt; j++)
+				{
+					if (cur_tx + 1 == ring_tx->tail)
+						break;
+					slot = &ring->slot[cur];
+					slot_tx = &ring_tx->slot[cur_tx];
+					tmp = slot_tx->buf_idx;
+					slot_tx->buf_idx = slot->buf_idx;
+					slot_tx->len = slot->len;
+					slot_tx->flags |= NS_BUF_CHANGED;
+					slot->buf_idx = tmp;
+					slot->flags |= NS_BUF_CHANGED;
+					cur = (cur + 1 == ring->num_slots) ? 0 : cur + 1;
+					cur_tx = (cur_tx + 1 == ring_tx->num_slots) ? 0 : cur_tx + 1;
+				}
+				ring->head = ring->cur = cur;
+				ring_tx->head = ring_tx->cur = cur_tx;
+			}
+
+			if (netmap_verbose & NM_VERB_RXSYNC)
+				D("post rxsync ring %d cur %d hwcur %d",
+					i, ring->cur,
+					kring->nr_hwcur);
+		}
+		nm_kr_put(kring);
+	}
+
+	return NM_IRQ_COMPLETED;
 }
 
 /*
