@@ -2631,13 +2631,11 @@ int netmap_kclose(struct netmap_adapter *na)
 int netmap_ksync(struct ifnet *ifp, u_long cmd)
 {
 	struct netmap_adapter *na = NA(ifp);
-	struct netmap_adapter *na_bound = na->na_bound;
 	struct netmap_priv_d *priv = na->kopen_priv;
 	struct netmap_if *nifp = priv->np_nifp;
 	int error = 0;
 	u_int i, qfirst, qlast;
 	struct netmap_kring *krings;
-	struct netmap_kring *krings_bound;
 	int sync_flags;
 	enum txrx t;
 
@@ -2655,24 +2653,14 @@ int netmap_ksync(struct ifnet *ifp, u_long cmd)
 	qfirst = priv->np_qfirst[t];
 	qlast = priv->np_qlast[t];
 	sync_flags = priv->np_sync_flags;
-	krings_bound = na_bound != NULL ? NMR(na_bound, NR_TX) : NULL;
-	if (krings_bound == NULL)	{
-		return NM_IRQ_COMPLETED;
-	}
 
 	for (i = qfirst; i < qlast; i++) {
 		struct netmap_kring *kring = krings + i;
 		struct netmap_ring *ring = kring->ring;
-		struct netmap_kring *kring_tx = krings_bound != NULL ? krings_bound + i : NULL;
-		struct netmap_ring *ring_tx;
 		int nm_sync_ok;
-		struct netmap_slot *slot;
-		struct netmap_slot *slot_tx;
 		int cnt;
 		int j;
 		uint32_t cur;
-		uint32_t cur_tx;
-		uint32_t tmp;
 
 		if (unlikely(nm_kr_tryget(kring, 1, &error))) {
 			error = (error ? EIO : 0);
@@ -2714,25 +2702,9 @@ int netmap_ksync(struct ifnet *ifp, u_long cmd)
 				if (cnt < 0)
 					cnt += ring->num_slots;
 				cur = ring->cur;
-				ring_tx = kring_tx->ring;
-				cur_tx = ring_tx->cur;
 				for (j = 0; j < cnt; j++)
-				{
-					if (cur_tx + 1 == ring_tx->tail)
-						break;
-					slot = &ring->slot[cur];
-					slot_tx = &ring_tx->slot[cur_tx];
-					tmp = slot_tx->buf_idx;
-					slot_tx->buf_idx = slot->buf_idx;
-					slot_tx->len = slot->len;
-					slot_tx->flags |= NS_BUF_CHANGED;
-					slot->buf_idx = tmp;
-					slot->flags |= NS_BUF_CHANGED;
 					cur = (cur + 1 == ring->num_slots) ? 0 : cur + 1;
-					cur_tx = (cur_tx + 1 == ring_tx->num_slots) ? 0 : cur_tx + 1;
-				}
 				ring->head = ring->cur = cur;
-				ring_tx->head = ring_tx->cur = cur_tx;
 			}
 
 			if (netmap_verbose & NM_VERB_RXSYNC)
