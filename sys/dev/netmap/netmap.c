@@ -953,6 +953,11 @@ netmap_do_unregif(struct netmap_priv_d *priv)
 	}
 #endif
 
+	if (na->active_fds == 1
+			&& na->kopen_flags & KOPEN_FLG_OPENED_IN_KERNEL)
+		/* It is now safe to clear the flag. */
+		na->kopen_flags &= ~(KOPEN_FLG_OPENED_IN_USER);
+
 	if (na->active_fds <= 0 || nm_kring_pending(priv)) {
 		na->nm_register(na, 0);
 	}
@@ -2351,6 +2356,7 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data, struct thread
 				error = EBUSY;
 				break;
 			}
+			na->kopen_flags |= KOPEN_FLG_OPENED_IN_USER;
 
 			if (na->virt_hdr_len && !(nmr->nr_flags & NR_ACCEPT_VNET_HDR)) {
 				error = EIO;
@@ -2398,6 +2404,7 @@ netmap_ioctl(struct netmap_priv_d *priv, u_long cmd, caddr_t data, struct thread
 		} while (0);
 		if (error) {
 			netmap_unget_na(na, ifp);
+			na->kopen_flags &= ~(KOPEN_FLG_OPENED_IN_USER);
 		}
 		/* release the reference from netmap_mem_find() or
 		 * netmap_mem_ext_create()
@@ -2657,7 +2664,7 @@ int netmap_ksync(struct ifnet *ifp, u_long cmd)
 		struct netmap_kring *kring = krings + i;
 		struct netmap_ring *ring = kring->ring;
 		struct netmap_kring *kring_tx = krings_bound != NULL ? krings_bound + i : NULL;
-		struct netmap_ring *ring_tx;// = kring_tx != NULL ? kring_tx->ring : NULL;
+		struct netmap_ring *ring_tx;
 		int nm_sync_ok;
 		struct netmap_slot *slot;
 		struct netmap_slot *slot_tx;

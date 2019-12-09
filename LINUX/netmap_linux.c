@@ -970,7 +970,7 @@ linux_netmap_fault(struct vm_fault *vmf)
 	unsigned long pa, pfn;
 
 	pa = netmap_mem_ofstophys(na->nm_mem, off);
-	ND("fault off %lx -> phys addr %lx", off, pa);
+	//ND("fault off %lx -> phys addr %lx", off, pa);
 	if (pa == 0)
 		return VM_FAULT_SIGBUS;
 	pfn = pa >> PAGE_SHIFT;

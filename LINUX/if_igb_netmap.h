@@ -87,7 +87,9 @@ igb_netmap_reg(struct netmap_adapter *na, int onoff)
 	while (test_and_set_bit(__IGB_RESETTING, &adapter->state))
 		usleep_range(1000, 2000);
 
-	if (na->kopen_flags & KOPEN_FLG_OPENED_IN_KERNEL) {
+	if ((na->kopen_flags & KOPEN_FLG_OPENED_IN_KERNEL)
+			&& !(na->kopen_flags & KOPEN_FLG_OPENED_IN_USER)) {
+		/* Do this only when opened in kernel only. */
 		if (onoff) {
 			nm_set_native_flags(na);
 		} else {
@@ -221,8 +223,16 @@ static int
 igb_netmap_rxsync(struct netmap_kring *kring, int flags)
 {
 	struct netmap_adapter *na = kring->na;
+	struct netmap_kring *krings = NMR(na, NR_RX);
+	u_int i = kring - krings;
+	struct netmap_adapter *na_bound = na->na_bound;
+	struct netmap_kring *krings_bound =
+		na_bound != NULL ? NMR(na_bound, NR_TX) : NULL;
+	struct netmap_kring *kring_tx =
+		krings_bound != NULL ? krings_bound + i : NULL;
 	struct ifnet *ifp = na->ifp;
 	struct netmap_ring *ring = kring->ring;
+	struct netmap_ring *ring_tx = kring_tx != NULL ? kring_tx->ring : NULL;
 	u_int ring_nr = kring->ring_id;
 	u_int nm_i;	/* index into the netmap ring */
 	u_int nic_i;	/* index into the NIC ring */
@@ -271,6 +281,40 @@ igb_netmap_rxsync(struct netmap_kring *kring, int flags)
 			kring->nr_hwtail = nm_i;
 		}
 		kring->nr_kflags &= ~NKR_PENDINTR;
+	}
+
+	/* Forward packets that userspace has released to TX queue of bound
+	 * interface.
+	 */
+	if (ring_tx) {
+		u_int cur_tx = ring_tx->cur;
+		u_int tail_tx = ring_tx->tail;
+		u_int lim_tx = ring_tx->num_slots - 1;
+
+		nm_i = kring->nr_hwcur;
+		if (nm_i != head) {
+			for (n = 0; nm_i != head; n++) {
+				struct netmap_slot *slot = &ring->slot[nm_i];
+				struct netmap_slot *slot_tx = &ring_tx->slot[cur_tx];
+				uint32_t tmp;
+
+				if (cur_tx + 1 == tail_tx)
+					break;
+				tmp = slot_tx->buf_idx;
+				slot_tx->buf_idx = slot->buf_idx;
+				slot_tx->len = slot->len;
+				slot_tx->flags |= NS_BUF_CHANGED;
+				slot->buf_idx = tmp;
+				slot->flags |= NS_BUF_CHANGED;
+
+				nm_i = nm_next(nm_i, lim);
+				cur_tx = nm_next(cur_tx, lim_tx);
+			}
+			if (n) {
+				ring_tx->head = ring_tx->cur = cur_tx;
+				netmap_ksync(na_bound->ifp, NIOCTXSYNC);
+			}
+		}
 	}
 
 	/*
@@ -420,6 +464,14 @@ igb_netmap_configure_rx_ring(struct igb_ring *rxr)
 	return 1;	// success
 }
 
+static unsigned int igb_netmap_opened_in_kernel_only(struct SOFTC_T *adapter)
+{
+	struct ifnet *ifp = adapter->netdev;
+	struct netmap_adapter* na = NA(ifp);
+
+	return ((na->kopen_flags & KOPEN_FLG_OPENED_IN_KERNEL)
+		&& !(na->kopen_flags & KOPEN_FLG_OPENED_IN_USER));
+}
 
 static void
 igb_netmap_attach(struct SOFTC_T *adapter)

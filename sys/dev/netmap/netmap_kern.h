@@ -840,6 +840,7 @@ struct netmap_adapter {
 	struct netmap_priv_d *kopen_priv;
 	struct netmap_adapter *na_bound;
 #define KOPEN_FLG_OPENED_IN_KERNEL 0x0001
+#define KOPEN_FLG_OPENED_IN_USER 0x0002
 	unsigned int kopen_flags;
 };
 
