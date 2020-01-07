@@ -2702,8 +2702,9 @@ int netmap_ksync(struct ifnet *ifp, u_long cmd)
 				if (cnt < 0)
 					cnt += ring->num_slots;
 				cur = ring->cur;
-				for (j = 0; j < cnt; j++)
-					cur = (cur + 1 == ring->num_slots) ? 0 : cur + 1;
+				cur += cnt;
+				if (cur > ring->num_slots - 1)
+					cur -= (ring->num_slots);
 				ring->head = ring->cur = cur;
 			}
 
