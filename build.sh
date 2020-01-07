@@ -29,4 +29,4 @@ action $1 modprobe -r igbnetmap
 
 action $1 modprobe igbnetmap
 
-action $1 ~/workspace/prepareIfaces.sh eth1,eth2,eth3,eth4 1 igb false 256
+action $1 ~/workspace/prepareIfaces.sh eth1,eth2,eth3,eth4 1 igb false 4096
