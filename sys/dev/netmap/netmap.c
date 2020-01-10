@@ -2659,7 +2659,6 @@ int netmap_ksync(struct ifnet *ifp, u_long cmd)
 		struct netmap_ring *ring = kring->ring;
 		int nm_sync_ok;
 		int cnt;
-		int j;
 		uint32_t cur;
 
 		if (unlikely(nm_kr_tryget(kring, 1, &error))) {
